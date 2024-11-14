@@ -41,8 +41,8 @@ const registerUser = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Avatar Local File Not Found")
     }
 
-    const avatar = uploadOnCloudinary(avatarLocalPath)
-    const coverImage = uploadOnCloudinary(coverImageLocalPath);
+    const avatar = await uploadOnCloudinary(avatarLocalPath)
+    const coverImage = await uploadOnCloudinary(coverImageLocalPath);
 
     if (!avatar) {
         throw new ApiError(400, "Avatar file not Uploaded")
@@ -58,7 +58,7 @@ const registerUser = asyncHandler(async (req, res) => {
     })
 
 
-    const createdUser = User.findById(user._id).select("-password -refereshToken")
+    const createdUser = await User.findById(user._id).select("-password -refreshToken")
 
     if (!createdUser) {
         throw new ApiError(500, "Something Went Wrong. User was not Registered!!")
