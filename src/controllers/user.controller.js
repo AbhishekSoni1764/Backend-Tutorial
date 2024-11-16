@@ -318,42 +318,41 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
     const avatarLocalPath = req.file?.path;
 
     if (!avatarLocalPath) {
-        throw new ApiError(401, "Local Image Not recieved!")
+        throw new ApiError(400, "Local image not received!");
     }
 
     try {
+        // Upload the avatar to Cloudinary
         const avatar = await uploadOnCloudinary(avatarLocalPath);
 
-        if (!avatar && !avatar?.url) {
-            throw new ApiError(401, "Image Was not uploaded to Cloudinary Successfully!!")
+        if (!avatar?.secure_url) {
+            throw new ApiError(400, "Image was not uploaded to Cloudinary!");
         }
 
         const user = await User.findOneAndUpdate(
-            req.user?._id,
+            { _id: req.user?._id },
             {
-                $set: {
-                    avatar: avatar.url
-                }
+                $set: { avatar: avatar.secure_url },
             },
-            {
-                new: true
-            }
-        ).select("-password")
+            { new: true }
+        ).select("-password");
 
+        if (!user) {
+            throw new ApiError(404, "User not found!");
+        }
 
-        return res
-            .status(200)
-            .json(
-                new ApiResponse(
-                    201,
-                    user,
-                    "User Avatar Successfully updated!!"
-                )
+        return res.status(200).json(
+            new ApiResponse(
+                200,
+                user,
+                "User avatar successfully updated!"
             )
+        );
     } catch (error) {
-        throw new ApiError(400, error?.message || "Somehting went wrong while updating the avatar!!")
+        throw new ApiError(500, error?.message || "Something went wrong while updating the avatar!");
     }
-})
+});
+
 
 //update userAvatar
 const updateUserCoverImage = asyncHandler(async (req, res) => {
