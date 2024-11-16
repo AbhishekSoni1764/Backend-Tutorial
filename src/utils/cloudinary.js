@@ -36,17 +36,16 @@ const uploadVideoOnCloudinary = async (localVideoPath) => {
         const uploadResult = await new Promise((resolve, reject) => {
             cloudinary.uploader.upload_large(localVideoPath, { resource_type: "video" }, (error, result) => {
                 if (error) {
-                    console.error("Cloudinary upload error:", error);
+                    // console.error("Cloudinary upload error:", error);
                     reject(error);
                 } else {
-                    console.log("Cloudinary upload result:", result);
+                    // console.log("Cloudinary upload result:", result);
                     resolve(result);
                 }
             });
         });
         return uploadResult;
     } catch (error) {
-        console.error("Error during Cloudinary upload:", error);
         throw new ApiError(400, error?.message || "Something went wrong while uploading the video");
     }
 };

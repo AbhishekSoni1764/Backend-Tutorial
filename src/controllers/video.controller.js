@@ -4,7 +4,7 @@ import { User } from "../models/user.models.js"
 import { ApiError } from "../utils/ApiError.js"
 import { ApiResponse } from "../utils/ApiResponse.js"
 import { asyncHandler } from "../utils/asyncHandler.js"
-import { uploadOnCloudinary } from "../utils/cloudinary.js"
+import { uploadOnCloudinary, uploadVideoOnCloudinary } from "../utils/cloudinary.js"
 
 
 const getAllVideos = asyncHandler(async (req, res) => {
@@ -14,8 +14,52 @@ const getAllVideos = asyncHandler(async (req, res) => {
 
 const publishAVideo = asyncHandler(async (req, res) => {
     const { title, description } = req.body
-    // TODO: get video, upload to cloudinary, create video
+
+    const thumbnailLocalFile = req.files?.thumbnail[0]?.path
+    const videoLocalFile = req.files?.videoFile[0]?.path
+
+    if (!(title && description) || !(thumbnailLocalFile && videoLocalFile)) {
+        throw new ApiError(401, "All Fields are required!!")
+    }
+
+    try {
+        const user = await User.findById(req.user?._id)
+
+        const videoFile = await uploadVideoOnCloudinary(videoLocalFile);
+        const thumbnail = await uploadOnCloudinary(thumbnailLocalFile);
+
+        console.log(videoFile)
+
+        if (!videoFile?.secure_url) {
+            throw new ApiError(400, "Video File not Uploaded")
+        }
+        if (!thumbnail?.secure_url) {
+            throw new ApiError(400, "Thumbnail not Uploaded")
+        }
+
+        const video = await Video.create({
+            title,
+            description,
+            videoFile: videoFile.secure_url,
+            thumbnail: thumbnail.secure_url,
+            duration: videoFile.duration,
+            views: 200,
+            isPublished: true,
+            owner: user._id
+        })
+
+        if (!video) {
+            throw new ApiError(500, "Something Went Wrong. Video Object was not Created!!")
+        }
+
+        return res.status(201).json(
+            new ApiResponse(200, video, "Video Object Successfully Created!!!")
+        )
+    } catch (error) {
+        throw new ApiError(400, error?.message || "Something Went wrong while Creating Video Object")
+    }
 })
+
 
 const getVideoById = asyncHandler(async (req, res) => {
     const { videoId } = req.params
