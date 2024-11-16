@@ -1,4 +1,5 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
+import mongoose from "mongoose";
 import { ApiError } from "../utils/ApiError.js"
 import { ApiResponse } from "../utils/ApiResponse.js"
 import { User } from "../models/user.models.js"
@@ -543,7 +544,7 @@ const getUserWatchHistory = asyncHandler(async (req, res) => {
                 )
             )
     } catch (error) {
-        throw new ApiError(400, "Something went wrong while getting watchhistory!!")
+        throw new ApiError(400, error?.message || "Something went wrong while getting watchhistory!!")
     }
 })
 
