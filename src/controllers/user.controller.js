@@ -397,6 +397,157 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
 })
 
 
+// <- Important Stuff ->
+//get userChannelProfile -> Aggregate Pipelines for basically conneting multiple documents and fetching collective data.
+const getUserChannelProfile = asyncHandler(async (req, res) => {
+
+    const { username } = req.params;
+
+    if (!username?.trim()) {
+        throw new ApiError(401, "Username doesn't exists!!")
+    }
+
+    try {
+        const channel = await User.aggregate([
+            //Match Pipline to get all docs with this username
+            {
+                $match: {
+                    username: username?.toLowerCase()
+                }
+            },
+            //Get all Subscribers for this perticular username -> Subscribers Pipeline
+            {
+                $lookup: {
+                    from: "subscribers",
+                    localField: "_id",
+                    foreignField: "channel",
+                    as: "subscribers"
+                }
+            },
+            //Get all Channels Subscribed by this particular Username -> Channel Pipeline
+            {
+                $lookup: {
+                    from: "subscribers",
+                    localField: "_id",
+                    foreignField: "subscriber",
+                    as: "subscribedTo"
+                }
+            },
+            //AddFields Pipeline -> adds new values to the user document.
+            {
+                $addFields: {
+                    subscribersCount: {
+                        $size: "$subscribers"
+                    },
+                    channelsSubscribedToCount: {
+                        $size: "$subscribedTo"
+                    },
+                    isSubscribed: {
+                        $cond: {
+                            if: { $in: [req.user?._id, "$subscribers.subscriber"] },
+                            then: true,
+                            else: false
+                        }
+                    }
+                }
+            },
+            //Projection Pipeline -> projects all the required values as the response
+            {
+                $project: {
+                    fullName: 1,
+                    username: 1,
+                    email: 1,
+                    subscribersCount: 1,
+                    channelsSubscribedToCount: 1,
+                    isSubscribed: 1,
+                    avatar: 1,
+                    coverImage: 1,
+                }
+            }
+        ])
+
+        if (!channel.length) {
+            throw new ApiError(404, "Channel Not Found!!")
+        }
+
+        //Channel is an array and its 0th value is the object that we require so we will send that as a response.
+        return res
+            .status(200)
+            .json(
+                new ApiResponse(
+                    200,
+                    channel[0],
+                    "User Channel Successfully Fetched!!"
+                )
+            )
+    } catch (error) {
+        throw new ApiError(400, error?.message || "Something went wrong while getting user channel profile!!")
+    }
+})
+
+//get userWatchHistory
+const getUserWatchHistory = asyncHandler(async (req, res) => {
+    try {
+        const user = await User.aggregate([
+            //get id from mongoose using -> Match Pipeline
+            {
+                $match: {
+                    _id: new mongoose.Types.ObjectId(req.user?._id)
+                }
+            },
+            //Lookup Pipelines -> for connecting and fetching data from multiple documents -> subpipelining
+            {
+                $lookup: {
+                    from: "videos",
+                    localField: "watchHistory",
+                    foreignField: "_id",
+                    as: "watchHistory",
+                    pipeline: [
+                        {
+                            $lookup: {
+                                from: "users",
+                                localField: "owner",
+                                foreignField: "_id",
+                                as: "owner",
+                                pipeline: [
+                                    {
+                                        $project: {
+                                            fullName: 1,
+                                            username: 1,
+                                            avatar: 1
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            },
+            //add new field to user model -> addfields Pipeline
+            {
+                $addFields: {
+                    owner: {
+                        $first: "$owner"
+                    }
+                }
+            }
+        ])
+
+        return res
+            .status(200)
+            .json(
+                new ApiResponse(
+                    200,
+                    user[0]?.watchHistory,
+                    "User watch history successsfully fetched!!"
+                )
+            )
+    } catch (error) {
+        throw new ApiError(400, "Something went wrong while getting watchhistory!!")
+    }
+})
+
+
 
 export {
     registerUser,
@@ -407,5 +558,7 @@ export {
     getCurrentUser,
     updateFullNameAndEmail,
     updateUserAvatar,
-    updateUserCoverImage
+    updateUserCoverImage,
+    getUserChannelProfile,
+    getUserWatchHistory
 };
