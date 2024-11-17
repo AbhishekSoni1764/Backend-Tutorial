@@ -60,6 +60,10 @@ const publishAVideo = asyncHandler(async (req, res) => {
 const getVideoById = asyncHandler(async (req, res) => {
     const { videoId } = req.params
 
+    if (!isValidObjectId(videoId)) {
+        throw new ApiError(401, "ObjectId was not Valid!!")
+    }
+
     try {
         const video = await Video.findById(videoId)
         return res
@@ -79,6 +83,9 @@ const getVideoById = asyncHandler(async (req, res) => {
 const updateVideo = asyncHandler(async (req, res) => {
     const { videoId } = req.params
 
+    if (!isValidObjectId(videoId)) {
+        throw new ApiError(401, "ObjectIs was not Valid!!")
+    }
     const { title, description } = req.body
     const thumbnailLocalFile = req.file?.path
 
@@ -144,7 +151,7 @@ const updateVideo = asyncHandler(async (req, res) => {
 const deleteVideo = asyncHandler(async (req, res) => {
     const { videoId } = req.params
 
-    if (!videoId) {
+    if (!isValidObjectId(videoId)) {
         throw new ApiError(401, "Video Id was not accessable!!")
     }
     try {
@@ -194,7 +201,7 @@ const deleteVideo = asyncHandler(async (req, res) => {
 const togglePublishStatus = asyncHandler(async (req, res) => {
     const { videoId } = req.params
 
-    if (!videoId) {
+    if (!isValidObjectId(videoId)) {
         throw new ApiError(401, "Video Id was not fetched!!")
     }
 
