@@ -157,8 +157,60 @@ const toggleTweetLike = asyncHandler(async (req, res) => {
 )
 
 const getLikedVideos = asyncHandler(async (req, res) => {
-    //TODO: get all liked videos
-})
+    const { _id } = req.user?._id;
+
+    try {
+        if (!isValidObjectId(_id)) {
+            throw new ApiError(401, "UserId is not Valid!!")
+        }
+
+        // Aggregation pipeline
+        const pipeline = [
+            {
+                $match: {
+                    likedBy: _id
+                }
+            },
+            {
+                $lookup: {
+                    from: "videos",
+                    localField: "videoId",
+                    foreignField: "_id",
+                    as: "videoDetails",
+                },
+            },
+            {
+                $unwind: "$videoDetails"
+            },
+            {
+                $project: {
+                    _id: 0,
+                    videoId: "$videoId",
+                    title: "$videoDetails.title",
+                    thumbnail: "$videoDetails.thumbnail",
+                    createdAt: "$videoDetails.createdAt",
+                },
+            },
+        ];
+
+        const likedVideos = await Like.aggregate(pipeline);
+
+        if (!likedVideos) {
+            throw new ApiError(401, "Data was not fetched!!")
+        }
+
+        res.status(200).json(
+            new ApiResponse(
+                200,
+                likedVideos,
+                "Video Details were successfully fetched!!"
+            )
+        );
+    } catch (error) {
+        throw new ApiError(400, error?.message || "Something went wrong while fetching details!!")
+    }
+});
+
 
 export {
     toggleCommentLike,
