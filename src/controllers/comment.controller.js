@@ -5,11 +5,73 @@ import { ApiResponse } from "../utils/ApiResponse.js"
 import { asyncHandler } from "../utils/asyncHandler.js"
 
 const getVideoComments = asyncHandler(async (req, res) => {
-    //TODO: get all comments for a video
-    const { videoId } = req.params
-    const { page = 1, limit = 10 } = req.query
+    const { videoId } = req.params;
+    const { page = 1, limit = 10 } = req.query;
 
-})
+    if (!isValidObjectId(videoId)) {
+        throw new ApiError(401, "VideoId is not valid!!")
+    }
+
+    try {
+        const skip = (page - 1) * limit;
+        const pipeline = [
+            // Match comments by videoId
+            {
+                $match: {
+                    video: videoId
+                }
+            },
+            // Sort comments by newest first (-1 -> ascending, 1 -> descending)
+            {
+                $sort: {
+                    createdAt: -1
+                }
+            },
+            // Pagination: Skip and limit
+            {
+                $skip: skip
+            },
+            {
+                $limit: Number(limit)
+            },
+            {
+                $lookup: {
+                    from: "users",
+                    localField: "user",
+                    foreignField: "_id",
+                    as: "userDetails"
+                }
+            },
+            { $unwind: "$userDetails" },
+        ];
+
+        const comments = await Comment.aggregate(pipeline);
+        if (!comments) {
+            throw new ApiError(401, "User Details were not fetched!!")
+        }
+
+        const totalComments = await Comment.countDocuments({ video: videoId });
+        if (!totalComments) {
+            throw new ApiError(401, "totalComments were not fetched!!")
+        }
+
+        res.status(200).json(
+            new ApiResponse(
+                200,
+                {
+                    comments,
+                    totalComments,
+                    totalPages: Math.ceil(totalComments / limit),
+                    currentPage: Number(page),
+                },
+                "Details Successfully Fetched!!"
+            )
+        );
+    } catch (error) {
+        throw new ApiError(400, error?.message || "Something went wrong while Fetching videoComments!!")
+    }
+});
+
 
 const addComment = asyncHandler(async (req, res) => {
     // TODO: add a comment to a video
