@@ -4,7 +4,7 @@ import { User } from "../models/user.models.js"
 import { ApiError } from "../utils/ApiError.js"
 import { ApiResponse } from "../utils/ApiResponse.js"
 import { asyncHandler } from "../utils/asyncHandler.js"
-import { uploadOnCloudinary, uploadVideoOnCloudinary } from "../utils/cloudinary.js"
+import { deleteFromCloudinary, uploadOnCloudinary, uploadVideoOnCloudinary } from "../utils/cloudinary.js"
 
 
 const getAllVideos = asyncHandler(async (req, res) => {
@@ -42,7 +42,6 @@ const publishAVideo = asyncHandler(async (req, res) => {
             thumbnail: thumbnail.secure_url,
             duration: videoFile.duration,
             views: 200,
-            isPublished: true,
             owner: user._id
         })
 
@@ -88,9 +87,29 @@ const updateVideo = asyncHandler(async (req, res) => {
     }
 
     try {
+        const video = await Video.findById(videoId);
+
+        if (!video) {
+            throw new ApiError(401, "Video object was not fetched!!")
+        }
+
+        if (!video.owner.equals(req.user._id)) {
+            throw new ApiError(402, "Unauthorized!! You are not authorized to update!!");
+        }
+
+        const deletedThumbnail = await deleteFromCloudinary(video.thumbnail)
+
+        if (!deletedThumbnail) {
+            throw new ApiError(402, "Old video was not deleted!!")
+        }
+
         const thumbnail = await uploadOnCloudinary(thumbnailLocalFile);
 
-        const video = await Video.findByIdAndUpdate(
+        if (!thumbnail) {
+            throw new ApiError(401, "Thumbnail was not Uploaded!!")
+        }
+
+        const updatedVideo = await Video.findByIdAndUpdate(
             videoId,
             {
                 $set: {
@@ -104,7 +123,7 @@ const updateVideo = asyncHandler(async (req, res) => {
             }
         )
 
-        if (!video) {
+        if (!updatedVideo) {
             throw new ApiError(402, "Video Object was not updated successfully!!");
         }
 
@@ -113,7 +132,7 @@ const updateVideo = asyncHandler(async (req, res) => {
             .json(
                 new ApiResponse(
                     200,
-                    video,
+                    updatedVideo,
                     "Video Object was successfully Updated!!"
                 )
             )
@@ -124,15 +143,36 @@ const updateVideo = asyncHandler(async (req, res) => {
 
 const deleteVideo = asyncHandler(async (req, res) => {
     const { videoId } = req.params
-    //TODO: delete video
+
     if (!videoId) {
         throw new ApiError(401, "Video Id was not accessable!!")
     }
     try {
-        const video = await Video.findByIdAndDelete(videoId)
-        console.log(video);
+        const video = await Video.findById(videoId);
 
         if (!video) {
+            throw new ApiError(401, "Video was not found!!")
+        }
+
+        if (!video.owner.equals(req.user._id)) {
+            throw new ApiError(402, "Unauthorized!! You are not authorized to update!!");
+        }
+
+        const deleteVideoFile = await deleteFromCloudinary(video.videoFile)
+
+        if (!deleteVideoFile) {
+            throw new ApiError(401, "Videofile was not deleted!!")
+        }
+
+        const deleteThumbnailFile = await deleteFromCloudinary(video.thumbnail)
+
+        if (!deleteThumbnailFile) {
+            throw new ApiError(401, "Thumbnail was not deleted!!")
+        }
+
+        const deletedVideo = await Video.findByIdAndDelete(videoId)
+
+        if (!deletedVideo) {
             throw new ApiError(401, "Video object was not deleted!!")
         }
 
@@ -153,6 +193,50 @@ const deleteVideo = asyncHandler(async (req, res) => {
 
 const togglePublishStatus = asyncHandler(async (req, res) => {
     const { videoId } = req.params
+
+    if (!videoId) {
+        throw new ApiError(401, "Video Id was not fetched!!")
+    }
+
+    try {
+        const video = await Video.findById(videoId);
+        if (!video) {
+            throw new ApiError(401, "Video not found!!")
+        }
+
+        if (!video.owner.equals(req.user._id)) {
+            throw new ApiError(402, "Unauthorized!! You are not authorized to update!!");
+        }
+
+        const toggleStatus = await Video.findByIdAndUpdate(
+            videoId,
+            {
+                $set: {
+                    isPublished: !video.isPublished,
+                }
+            },
+            {
+                new: true
+            }
+        )
+
+        if (!toggleStatus) {
+            throw new ApiError(401, "Published Status is not updated!!")
+        }
+
+        return res
+            .status(200)
+            .json(
+                new ApiResponse(
+                    200,
+                    toggleStatus,
+                    "isPublished Status updated!!"
+                )
+            )
+    } catch (error) {
+        throw new ApiError(400, error?.message || "Something went wrong while change isPublished Status!!")
+    }
+
 })
 
 export {
