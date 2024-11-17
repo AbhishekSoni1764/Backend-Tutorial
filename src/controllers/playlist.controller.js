@@ -13,6 +13,15 @@ const createPlaylist = asyncHandler(async (req, res) => {
     }
 
     try {
+
+        const isAlreadyExists = await Playlist.findOne({
+            $and: [{ name }, { description }]
+        })
+
+        if (isAlreadyExists) {
+            throw new ApiError(403, "Playlist Already exists!")
+        }
+
         const playlist = await Playlist.create({
             name,
             description,
