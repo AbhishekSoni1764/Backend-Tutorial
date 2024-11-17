@@ -23,13 +23,13 @@ const uploadOnCloudinary = async (localFilePath) => {
                 console.log(error);
             });
         console.log("File is Successfully Uploaded");
+        fs.unlinkSync(localFilePath)
         return uploadResult;
     } catch (error) {
         fs.unlinkSync(localFilePath)
         return null;
     }
 }
-
 
 const uploadVideoOnCloudinary = async (localVideoPath) => {
     try {
@@ -44,12 +44,38 @@ const uploadVideoOnCloudinary = async (localVideoPath) => {
                 }
             });
         });
+        fs.unlinkSync(localVideoPath)
         return uploadResult;
     } catch (error) {
+        fs.unlinkSync(localVideoPath)
         throw new ApiError(400, error?.message || "Something went wrong while uploading the video");
+    }
+};
+
+const deleteFromCloudinary = async (filePath) => {
+    try {
+        if (!filePath) return null;
+        const fileName = filePath.split("/").pop().split(".")[0];
+        const resourceType = filePath.includes("image") ? "image" : "video";
+
+        const deleteResult = await cloudinary.uploader.destroy(fileName, {
+            resource_type: resourceType,
+        });
+
+        console.log("File is Successfully Deleted");
+        if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+        }
+        return deleteResult;
+    } catch (error) {
+        console.error("Error deleting file from Cloudinary:", error);
+        if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+        }
+        return null;
     }
 };
 
 
 
-export { uploadOnCloudinary, uploadVideoOnCloudinary }
+export { uploadOnCloudinary, uploadVideoOnCloudinary, deleteFromCloudinary }
