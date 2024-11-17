@@ -153,10 +153,54 @@ const addVideoToPlaylist = asyncHandler(async (req, res) => {
 
 
 const removeVideoFromPlaylist = asyncHandler(async (req, res) => {
-    const { playlistId, videoId } = req.params
-    // TODO: remove video from playlist
+    const { playlistId, videoId } = req.params;
 
-})
+    if (!isValidObjectId(playlistId) || !isValidObjectId(videoId)) {
+        throw new ApiError(401, "Playlist ID or Video ID is not valid!");
+    }
+
+    try {
+        const playlist = await Playlist.findById(playlistId);
+
+        if (!playlist) {
+            throw new ApiError(402, "Playlist not found!");
+        }
+
+        if (!req.user?._id || !playlist.owner.equals(req.user._id)) {
+            throw new ApiError(403, "You are not allowed to modify this playlist!");
+        }
+
+        const videoExists = playlist.videos.some((video) => video.toString() === videoId);
+
+        if (!videoExists) {
+            throw new ApiError(401, "Video does not exist in the playlist!");
+        }
+
+        const updatedPlaylist = await Playlist.findByIdAndUpdate(
+            playlistId,
+            { $pull: { videos: videoId } },
+            { new: true }
+        );
+
+        if (!updatedPlaylist) {
+            throw new ApiError(500, "Failed to remove the video from the playlist!");
+        }
+
+        return res.status(200).json(
+            new ApiResponse(
+                200,
+                updatedPlaylist,
+                "Video was successfully removed from the playlist!"
+            )
+        );
+    } catch (error) {
+        throw new ApiError(
+            400,
+            error?.message || "Something went wrong while removing the video from the playlist!"
+        );
+    }
+});
+
 
 const deletePlaylist = asyncHandler(async (req, res) => {
     const { playlistId } = req.params
