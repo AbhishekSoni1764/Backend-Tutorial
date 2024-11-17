@@ -13,7 +13,7 @@ const createTweet = asyncHandler(async (req, res) => {
     }
 
     try {
-        const tweet = Tweet.create({
+        const tweet = await Tweet.create({
             owner: req.user?._id,
             content
         })
@@ -37,7 +37,32 @@ const createTweet = asyncHandler(async (req, res) => {
 })
 
 const getUserTweets = asyncHandler(async (req, res) => {
-    // TODO: get user tweets
+    const { userId } = req.params;
+
+    if (!isValidObjectId(userId)) {
+        throw new ApiError(401, "UserId is not valid!!")
+    }
+
+    try {
+        const ownerTweets = await Tweet.find({ owner: userId })
+
+        if (!ownerTweets) {
+            throw new ApiError(401, "Tweets not found!!")
+        }
+
+        return res
+            .status(200)
+            .json(
+                new ApiResponse(
+                    200,
+                    ownerTweets,
+                    "Tweets Successfully fetched!!"
+                )
+            )
+
+    } catch (error) {
+        throw new ApiError(400, error?.message || "Something went wrong while fetching tweets!!")
+    }
 })
 
 const updateTweet = asyncHandler(async (req, res) => {
