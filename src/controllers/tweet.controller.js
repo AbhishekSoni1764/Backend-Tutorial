@@ -66,7 +66,57 @@ const getUserTweets = asyncHandler(async (req, res) => {
 })
 
 const updateTweet = asyncHandler(async (req, res) => {
-    //TODO: update tweet
+    const { tweetId } = req.params;
+    const { content } = req.body;
+
+    if (!isValidObjectId(tweetId)) {
+        throw new ApiError(401, "TweetId is not valid!!")
+    }
+    if (!content) {
+        throw new ApiError(401, "Content is required!!")
+    }
+
+    try {
+        const tweet = await Tweet.findById(tweetId);
+
+        if (!tweet) {
+            throw new ApiError(401, "Tweet not found!!")
+        }
+
+        if (!tweet.owner.equals(req.user?._id)) {
+            throw new ApiError(403, "Unauthourized!! You are not allowed to update!!")
+        }
+
+        const updatedTweet = await Tweet.findByIdAndUpdate(
+            tweetId,
+            {
+                $set: {
+                    content
+                }
+            },
+            {
+                new: true
+            }
+        )
+
+        if (!updateTweet) {
+            throw new ApiError(401, "Tweet was not updated!!")
+        }
+
+        return res
+            .status(200)
+            .json(
+                new ApiResponse(
+                    200,
+                    updatedTweet,
+
+                    "Tweet was successfully updated!!"
+                )
+            )
+    } catch (error) {
+        throw new ApiError(400, error?.message || "Something went wrong while updating the tweet!!")
+    }
+
 })
 
 const deleteTweet = asyncHandler(async (req, res) => {
