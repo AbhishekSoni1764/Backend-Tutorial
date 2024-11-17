@@ -50,7 +50,57 @@ const addComment = asyncHandler(async (req, res) => {
 })
 
 const updateComment = asyncHandler(async (req, res) => {
-    // TODO: update a comment
+    const { commentId } = req.params;
+    const { content } = req.body;
+
+    if (!isValidObjectId(commentId)) {
+        throw new ApiError(401, "commentID is not valid!!")
+    }
+
+    if (!content) {
+        throw new ApiError(401, "Content is required!!")
+    }
+
+    try {
+        const comment = await Comment.findById(commentId);
+
+        if (!comment) {
+            throw new ApiError(401, "Comment not found!!")
+        }
+
+        if (!comment.owner.equals(req.user?._id)) {
+            throw new ApiError(403, "Unauthorized!! You are not allowed to update the comment!!")
+        }
+
+        const updatedComment = await Comment.findByIdAndUpdate(
+            commentId,
+            {
+                $set: {
+                    content
+                }
+            },
+            {
+                new: true
+            }
+        )
+
+        if (!updatedComment) {
+            throw new ApiError(401, "Comment was not updated!!")
+        }
+
+        return res
+            .status(200)
+            .json(
+                new ApiResponse(
+                    200,
+                    updatedComment,
+                    "Comment was successfully updated!!"
+                )
+            )
+    } catch (error) {
+        throw new ApiError(400, error?.message || "Something went wrong while updating the comment!!")
+    }
+
 })
 
 const deleteComment = asyncHandler(async (req, res) => {
