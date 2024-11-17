@@ -28,8 +28,6 @@ const publishAVideo = asyncHandler(async (req, res) => {
         const videoFile = await uploadVideoOnCloudinary(videoLocalFile);
         const thumbnail = await uploadOnCloudinary(thumbnailLocalFile);
 
-        console.log(videoFile)
-
         if (!videoFile?.secure_url) {
             throw new ApiError(400, "Video File not Uploaded")
         }
@@ -85,46 +83,71 @@ const updateVideo = asyncHandler(async (req, res) => {
     const { title, description } = req.body
     const thumbnailLocalFile = req.file?.path
 
-    console.log(videoId, title, description, thumbnailLocalFile)
     if (!title || !description || !thumbnailLocalFile) {
         throw new ApiError(401, "All Fields are Required!!!")
     }
 
-    const thumbnail = await uploadOnCloudinary(thumbnailLocalFile);
+    try {
+        const thumbnail = await uploadOnCloudinary(thumbnailLocalFile);
 
-    const video = await Video.findByIdAndUpdate(
-        videoId,
-        {
-            $set: {
-                title,
-                description,
-                thumbnail: thumbnail?.secure_url,
+        const video = await Video.findByIdAndUpdate(
+            videoId,
+            {
+                $set: {
+                    title,
+                    description,
+                    thumbnail: thumbnail?.secure_url,
+                }
+            },
+            {
+                new: true
             }
-        },
-        {
-            new: true
-        }
-    )
-
-    if (!video) {
-        throw new ApiError(402, "Video Object was not updated successfully!!");
-    }
-
-    return res
-        .status(200)
-        .json(
-            new ApiResponse(
-                200,
-                video,
-                "Video Object was successfully Updated!!"
-            )
         )
 
+        if (!video) {
+            throw new ApiError(402, "Video Object was not updated successfully!!");
+        }
+
+        return res
+            .status(200)
+            .json(
+                new ApiResponse(
+                    200,
+                    video,
+                    "Video Object was successfully Updated!!"
+                )
+            )
+    } catch (error) {
+        throw new ApiError(400, error?.message || "Something went wrong while updating video details!!")
+    }
 })
 
 const deleteVideo = asyncHandler(async (req, res) => {
     const { videoId } = req.params
     //TODO: delete video
+    if (!videoId) {
+        throw new ApiError(401, "Video Id was not accessable!!")
+    }
+    try {
+        const video = await Video.findByIdAndDelete(videoId)
+        console.log(video);
+
+        if (!video) {
+            throw new ApiError(401, "Video object was not deleted!!")
+        }
+
+        return res
+            .status(200)
+            .json(
+                new ApiResponse(
+                    201,
+                    {},
+                    "Video Object was Successfully deleted!!"
+                )
+            )
+    } catch (error) {
+        throw new ApiError(400, error?.message || "Something went wrong while deleting the video object!")
+    }
 
 })
 
