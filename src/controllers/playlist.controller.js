@@ -103,8 +103,54 @@ const getPlaylistById = asyncHandler(async (req, res) => {
 })
 
 const addVideoToPlaylist = asyncHandler(async (req, res) => {
-    const { playlistId, videoId } = req.params
-})
+    const { playlistId, videoId } = req.params;
+
+    if (!isValidObjectId(playlistId) || !isValidObjectId(videoId)) {
+        throw new ApiError(401, "Playlist ID or Video ID is not valid!");
+    }
+
+    try {
+        const playlist = await Playlist.findById(playlistId);
+
+        if (!playlist) {
+            throw new ApiError(402, "Playlist not found!");
+        }
+
+        if (!playlist.owner.equals(req.user._id)) {
+            throw new ApiError(403, "You are not allowed to modify this playlist!");
+        }
+
+        const videoExists = playlist.videos.some((video) => video.toString() === videoId);
+
+        if (videoExists) {
+            throw new ApiError(401, "Video already exists in the playlist!");
+        }
+
+        const addedVideo = await Playlist.findByIdAndUpdate(
+            playlistId,
+            { $push: { videos: videoId } },
+            { new: true }
+        );
+
+        if (!addedVideo) {
+            throw new ApiError(401, "Video was not added!");
+        }
+
+        return res.status(200).json(
+            new ApiResponse(
+                200,
+                addedVideo,
+                "Video was successfully added to the playlist!"
+            )
+        );
+    } catch (error) {
+        throw new ApiError(
+            400,
+            error?.message || "Something went wrong while adding the video to the playlist!"
+        );
+    }
+});
+
 
 const removeVideoFromPlaylist = asyncHandler(async (req, res) => {
     const { playlistId, videoId } = req.params
