@@ -8,8 +8,48 @@ import { deleteFromCloudinary, uploadOnCloudinary, uploadVideoOnCloudinary } fro
 
 
 const getAllVideos = asyncHandler(async (req, res) => {
-    const { page = 1, limit = 10, query, sortBy, sortType, userId } = req.query
-    //TODO: get all videos based on query, sort, pagination
+    const { page = 1, limit = 10, userId = req.user?._id } = req.query;
+
+    const pageInt = parseInt(page, 10);
+    const limitInt = parseInt(limit, 10);
+    const skip = (pageInt - 1) * limitInt;
+
+    try {
+        const videos = await Video.aggregate([
+            {
+                $match: {
+                    owner: new mongoose.Types.ObjectId(userId)
+                }
+            },
+            {
+                $sort: {
+                    createdAt: -1
+                }
+            },
+            {
+                $skip: skip
+            },
+            {
+                $limit: limitInt
+            },
+        ])
+
+        if (!videos) {
+            throw new ApiError(401, "Data Not Found")
+        }
+
+        return res
+            .status(200)
+            .json(
+                new ApiResponse(
+                    200,
+                    videos,
+                    "Videos Successfully Fetched!!"
+                )
+            )
+    } catch (error) {
+        throw new ApiError(400, error?.message || "Something went wrong while fetching all videos!!")
+    }
 })
 
 const publishAVideo = asyncHandler(async (req, res) => {
