@@ -151,7 +151,6 @@ const addVideoToPlaylist = asyncHandler(async (req, res) => {
     }
 });
 
-
 const removeVideoFromPlaylist = asyncHandler(async (req, res) => {
     const { playlistId, videoId } = req.params;
 
@@ -200,7 +199,6 @@ const removeVideoFromPlaylist = asyncHandler(async (req, res) => {
         );
     }
 });
-
 
 const deletePlaylist = asyncHandler(async (req, res) => {
     const { playlistId } = req.params
