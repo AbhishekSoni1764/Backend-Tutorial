@@ -136,6 +136,65 @@ const getUserChannelSubscribers = asyncHandler(async (req, res) => {
 const getSubscribedChannels = asyncHandler(async (req, res) => {
     const { subscriberId } = req.params
 
+    if (!isValidObjectId(subscriberId)) {
+        throw new ApiError(401, "SubscriberId is inValid!!")
+    }
+
+    try {
+        const channels = await Subscription.aggregate([
+            {
+                $match: {
+                    subscribers: new mongoose.Types.ObjectId(subscriberId)
+                }
+            },
+            {
+                $lookup: {
+                    from: 'users',
+                    localField: 'channel',
+                    foreignField: "_id",
+                    as: "channels",
+                    pipeline: [
+                        {
+                            $project: {
+                                fullName: 1,
+                                username: 1,
+                                avatar: 1,
+                            }
+                        }
+                    ]
+                }
+            },
+            {
+                $addFields: {
+                    channels: {
+                        $first: "$channels"
+                    }
+                }
+            },
+            {
+                $project: {
+                    channels: 1,
+                    createdAt: 1
+                }
+            }
+        ])
+
+        if (!channels) {
+            throw new ApiError(401, "Channels not found!!")
+        }
+
+        return res
+            .status(200)
+            .json(
+                new ApiResponse(
+                    200,
+                    channels,
+                    "Channels successfully fetched!!"
+                )
+            )
+    } catch (error) {
+        throw new ApiError(400, error?.message || "Something went wrong while Fetching Channel List Subscribed to!!")
+    }
 })
 
 export {
