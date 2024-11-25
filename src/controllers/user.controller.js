@@ -418,7 +418,7 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
             //Get all Subscribers for this perticular username -> Subscribers Pipeline
             {
                 $lookup: {
-                    from: "subscribers",
+                    from: "subscriptions",
                     localField: "_id",
                     foreignField: "channel",
                     as: "subscribers"
@@ -427,9 +427,9 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
             //Get all Channels Subscribed by this particular Username -> Channel Pipeline
             {
                 $lookup: {
-                    from: "subscribers",
+                    from: "subscriptions",
                     localField: "_id",
-                    foreignField: "subscriber",
+                    foreignField: "subscribers",
                     as: "subscribedTo"
                 }
             },
